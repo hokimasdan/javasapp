@@ -3,12 +3,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function KasirPage() {
-const [products, setProducts] = useState<any[]>([])
-  const [cart, setCart] = useState([]) // "Keranjang" sementara
+  // Memberi label <any[]> agar Satpam TypeScript mengizinkan data masuk
+  const [products, setProducts] = useState<any[]>([]) 
+  const [cart, setCart] = useState<any[]>([]) 
   const [search, setSearch] = useState('')
-  const [isReseller, setIsReseller] = useState(false) // Toggle Harga Reseller
+  const [isReseller, setIsReseller] = useState(false)
 
-  // Ambil data produk yang stoknya masih ada
+  // Ambil data produk
   const fetchProducts = async () => {
     const { data } = await supabase.from('products').select('*').gt('stock', 0)
     setProducts(data || [])
@@ -31,12 +32,12 @@ const [products, setProducts] = useState<any[]>([])
   // Hitung Total
   const calculateTotal = () => {
     return cart.reduce((sum, item: any) => {
-      const price = isReseller ? item.reseller_price : item.price
+      const price = isReseller ? (item.reseller_price || 0) : (item.price || 0)
       return sum + (price * item.qty)
     }, 0)
   }
 
-  // Proses Bayar (Simpan Transaksi & Kurangi Stok)
+  // Proses Bayar
   const handleCheckout = async () => {
     if (cart.length === 0) return alert('Keranjang kosong!')
 
@@ -45,22 +46,26 @@ const [products, setProducts] = useState<any[]>([])
     // 1. Simpan ke tabel transactions
     const { data: trx, error: trxErr } = await supabase
       .from('transactions')
-      .insert([{ total_price: total, cash_received: total }]) // Sederhana dulu: bayar pas
+      .insert([{ total_price: total, cash_received: total }])
       .select()
 
-    if (trxErr) return alert('Gagal simpan transaksi')
+    // Cek apakah transaksi berhasil dibuat
+    if (trxErr || !trx || trx.length === 0) {
+      return alert('Gagal simpan transaksi: ' + (trxErr?.message || 'Data tidak kembali'))
+    }
 
-    // 2. Simpan detail & Kurangi stok (Looping keranjang)
+    const transactionId = trx[0].id
+
+    // 2. Simpan detail & Kurangi stok
     for (const item of cart) {
       await supabase.from('transaction_items').insert([{
-        transaction_id: trx[0].id,
+        transaction_id: transactionId,
         product_id: item.id,
         quantity: item.qty,
         subtotal: (isReseller ? item.reseller_price : item.price) * item.qty,
         price_type: isReseller ? 'reseller' : 'umum'
       }])
 
-      // Update stok di tabel products
       await supabase.from('products').update({ stock: item.stock - item.qty }).eq('id', item.id)
     }
 
@@ -76,7 +81,7 @@ const [products, setProducts] = useState<any[]>([])
         <h1 className="text-2xl font-bold text-primary mb-4">Kasir Javas</h1>
         <input 
           type="text" placeholder="Cari tanaman..." 
-          className="w-full p-3 rounded-xl border border-emerald-100 mb-6 outline-none focus:ring-2 focus:ring-primary"
+          className="w-full p-3 rounded-xl border border-emerald-100 mb-6 outline-none focus:ring-2 focus:ring-primary bg-white text-black"
           onChange={(e) => setSearch(e.target.value.toLowerCase())}
         />
 
@@ -95,7 +100,6 @@ const [products, setProducts] = useState<any[]>([])
       <div className="w-96 bg-white border-l border-emerald-100 p-6 flex flex-col">
         <h2 className="text-xl font-bold mb-4">Keranjang</h2>
         
-        {/* Toggle Harga */}
         <div className="flex items-center justify-between mb-4 p-3 bg-emerald-50 rounded-xl">
           <span className="text-sm font-bold text-primary">Mode Reseller?</span>
           <input type="checkbox" checked={isReseller} onChange={() => setIsReseller(!isReseller)} className="w-5 h-5 accent-primary" />
