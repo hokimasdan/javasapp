@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function KasirPage() {
-  const [products, setProducts] = useState([])
+const [products, setProducts] = useState<any[]>([])
   const [cart, setCart] = useState([]) // "Keranjang" sementara
   const [search, setSearch] = useState('')
   const [isReseller, setIsReseller] = useState(false) // Toggle Harga Reseller
