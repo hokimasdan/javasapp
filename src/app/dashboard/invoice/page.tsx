@@ -2,251 +2,234 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-export default function InvoicePage() {
-  const [products, setProducts] = useState<any[]>([])
-  const [invoices, setInvoices] = useState<any[]>([])
-  const [cart, setCart] = useState<any[]>([])
-  const [search, setSearch] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<string[]>([]) // Untuk Hapus Massal
+interface Product {
+  id: string;
+  sku: string;
+  name: string;
+  reseller_price: number;
+  stock: number;
+}
 
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    customer_whatsapp: '',
-    due_date: '',
-    due_date_notes: '',
-    status: 'pending'
+interface InvoiceItem extends Product {
+  qty: number;
+}
+
+export default function InvoiceGrosirPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [invoiceId] = useState(`INV-${Date.now().toString().slice(-6)}`)
+  
+  // Data Pembeli
+  const [customer, setCustomer] = useState({
+    name: '',
+    phone: '',
+    address: ''
   })
 
-  const fetchData = async () => {
-    const { data: p } = await supabase.from('products').select('*').gt('stock', 0)
-    const { data: i } = await supabase.from('invoices').select('*').order('created_at', { ascending: false })
-    setProducts(p || [])
-    setInvoices(i || [])
+  const fetchProducts = async () => {
+    const { data } = await supabase.from('products').select('*').gt('stock', 0).order('name', { ascending: true })
+    setProducts(data || [])
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchProducts() }, [])
 
-  // Fungsi Keranjang & Jumlah Barang
-  const addToCart = (p: any) => {
-    const ex = cart.find(i => i.id === p.id)
-    if (ex) updateQty(p.id, ex.qty + 1)
-    else setCart([...cart, { ...p, qty: 1 }])
+  const addToInvoice = (product: Product) => {
+    const existing = invoiceItems.find((item) => item.id === product.id)
+    if (existing) {
+      updateQty(product.id, existing.qty + 1)
+    } else {
+      setInvoiceItems([...invoiceItems, { ...product, qty: 1 }])
+    }
   }
 
   const updateQty = (id: string, newQty: number) => {
-    if (newQty < 1) return;
-    setCart(cart.map(i => i.id === id ? { ...i, qty: newQty } : i))
-  }
-
-  const calculateTotal = () => cart.reduce((s, i) => s + (i.price * i.qty), 0)
-
-  // FITUR: SIMPAN INVOICE
-  const handleSaveInvoice = async () => {
-    if (!formData.customer_name || cart.length === 0) return alert('Lengkapi data pelanggan dan barang!')
-    setLoading(true)
-
-    const { data: inv, error: invErr } = await supabase
-      .from('invoices')
-      .insert([{
-        customer_name: formData.customer_name,
-        customer_whatsapp: formData.customer_whatsapp,
-        total_amount: calculateTotal(),
-        status: formData.status,
-        due_date: formData.due_date || null,
-        due_date_notes: formData.due_date_notes
-      }])
-      .select()
-
-    if (invErr) return alert(invErr.message)
-
-    for (const item of cart) {
-      await supabase.from('invoice_items').insert([{
-        invoice_id: inv[0].id,
-        product_id: item.id,
-        product_name: item.name,
-        quantity: item.qty,
-        price: item.price,
-        subtotal: item.price * item.qty
-      }])
-      await supabase.from('products').update({ stock: item.stock - item.qty }).eq('id', item.id)
+    if (newQty < 0) return
+    if (newQty === 0) {
+      setInvoiceItems(invoiceItems.filter(i => i.id !== id))
+    } else {
+      setInvoiceItems(invoiceItems.map(item => item.id === id ? { ...item, qty: newQty } : item))
     }
-
-    alert('Invoice Berhasil Terbit!'); setIsCreating(false); setCart([]); fetchData(); setLoading(false)
   }
 
-  // FITUR: LUNASKAN TAGIHAN
-  const markAsLunas = async (id: string) => {
-    const { error } = await supabase.from('invoices').update({ status: 'lunas' }).eq('id', id)
-    if (error) alert('Gagal melunaskan tagihan')
-    else fetchData()
+  const calculateTotal = () => {
+    return invoiceItems.reduce((sum, item) => sum + (item.reseller_price * item.qty), 0)
   }
 
-  // FITUR: HAPUS MASSAL
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return alert('Pilih invoice yang akan dihapus')
-    if (!confirm(`Hapus ${selectedIds.length} invoice terpilih? Stok akan dikembalikan.`)) return
-
-    for (const id of selectedIds) {
-      const { data: items } = await supabase.from('invoice_items').select('*').eq('invoice_id', id)
-      if (items) {
-        for (const item of items) {
-          const { data: p } = await supabase.from('products').select('stock').eq('id', item.product_id).single()
-          await supabase.from('products').update({ stock: (p?.stock || 0) + item.quantity }).eq('id', item.product_id)
-        }
-      }
-      await supabase.from('invoices').delete().eq('id', id)
-    }
-    setSelectedIds([]); fetchData(); alert('Berhasil dihapus massal!')
+  const handlePrint = () => {
+    if (!customer.name) return alert('Nama Pembeli wajib diisi!')
+    window.print()
   }
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  const shareWA = () => {
+    if (!customer.phone) return alert('Nomor WA Pembeli wajib diisi!')
+    let text = `*INVOICE GROSIR JAVAS NURSERY*\nNo: ${invoiceId}\nKepada: ${customer.name}\n\n`
+    invoiceItems.forEach(item => {
+      text += `- ${item.name} (${item.qty} pcs) : Rp ${(item.reseller_price * item.qty).toLocaleString()}\n`
+    })
+    text += `\n*TOTAL TAGIHAN: Rp ${calculateTotal().toLocaleString()}*\n\nTerima kasih atas pesanannya, Mas Dan.`
+    window.open(`https://wa.me/${customer.phone}?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   return (
-    <div className="p-8 bg-background-light min-h-screen text-black">
-      <div className="flex justify-between items-center mb-8">
+    <div className="min-h-screen bg-slate-50 pb-20">
+      {/* HEADER */}
+      <div className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Invoice Grosir</h1>
-          <p className="text-slate-500 text-sm">Kelola tagihan partai besar Javas Nursery.</p>
+          <h1 className="text-3xl font-black text-primary uppercase tracking-tighter">Invoice Grosir</h1>
+          <p className="text-slate-400 text-sm font-bold">Buat penawaran & tagihan borongan Javas Nursery</p>
         </div>
-        <div className="flex gap-3">
-          {!isCreating && selectedIds.length > 0 && (
-            <button onClick={handleBulkDelete} className="bg-red-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2">
-              <span className="material-symbols-outlined">delete_sweep</span> Hapus ({selectedIds.length})
-            </button>
-          )}
-          <button onClick={() => setIsCreating(!isCreating)} className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg">
-            {isCreating ? 'Batal' : 'Buat Invoice Baru'}
+        <div className="flex gap-2 w-full md:w-auto">
+          <button onClick={handlePrint} className="flex-1 md:flex-none bg-slate-800 text-white px-6 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-2 active-scale shadow-lg">
+            <span className="material-symbols-outlined text-sm">print</span> CETAK PDF
+          </button>
+          <button onClick={shareWA} className="flex-1 md:flex-none bg-green-600 text-white px-6 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-2 active-scale shadow-lg">
+            <span className="material-symbols-outlined text-sm">share</span> KIRIM WA
           </button>
         </div>
       </div>
 
-      {isCreating ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* KIRI: CARI & PILIH BARANG */}
-          <div className="lg:col-span-2">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100">
-              <input 
-                type="text" placeholder="Cari tanaman untuk grosir..." 
-                className="w-full p-4 mb-6 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-primary"
-                onChange={(e) => setSearch(e.target.value.toLowerCase())}
-              />
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-6 md:px-8">
+        {/* KIRI: INPUT DATA & CARI PRODUK */}
+        <div className="lg:col-span-1 space-y-6 no-print">
+          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+            <h3 className="font-black text-slate-800 mb-4 uppercase text-xs tracking-widest">Data Pelanggan</h3>
+            <div className="space-y-3">
+              <input type="text" placeholder="Nama Lengkap Pembeli" className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm" value={customer.name} onChange={(e)=>setCustomer({...customer, name: e.target.value})} />
+              <input type="number" placeholder="Nomor WhatsApp (628xxx)" className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm" value={customer.phone} onChange={(e)=>setCustomer({...customer, phone: e.target.value})} />
+              <textarea placeholder="Alamat Pengiriman" className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm h-24 resize-none" value={customer.address} onChange={(e)=>setCustomer({...customer, address: e.target.value})} />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col h-[400px]">
+             <h3 className="font-black text-slate-800 mb-4 uppercase text-xs tracking-widest">Pilih Tanaman</h3>
+             <input type="text" placeholder="Cari nama tanaman..." className="w-full p-3 mb-4 bg-slate-50 rounded-xl border-none text-xs font-bold" onChange={(e)=>setSearch(e.target.value.toLowerCase())} />
+             <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
                 {products.filter(p => p.name.toLowerCase().includes(search)).map(p => (
-                  <div key={p.id} onClick={() => addToCart(p)} className="p-4 bg-white border rounded-2xl cursor-pointer hover:border-primary transition-all shadow-sm flex flex-col justify-between">
+                  <div key={p.id} onClick={() => addToInvoice(p)} className="flex justify-between items-center p-3 bg-slate-50 hover:bg-primary/5 rounded-2xl cursor-pointer transition-all active-scale group">
                     <div>
-                      <p className="font-bold text-sm leading-tight mb-1">{p.name}</p>
-                      <p className="text-primary font-bold text-xs">Rp {p.price.toLocaleString()}</p>
+                      <p className="font-bold text-slate-700 text-xs">{p.name}</p>
+                      <p className="text-[10px] text-primary font-black">Rp {p.reseller_price.toLocaleString()}</p>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-2">Stok: {p.stock}</p>
+                    <span className="material-symbols-outlined text-slate-300 group-hover:text-primary">add_circle</span>
                   </div>
                 ))}
-              </div>
-            </div>
+             </div>
           </div>
+        </div>
 
-          {/* KANAN: FORM & KERANJANG */}
-          <div className="bg-white p-6 rounded-3xl shadow-xl border border-emerald-100 h-fit flex flex-col">
-            <h3 className="font-bold mb-4 text-primary">Detail Tagihan</h3>
-            <div className="space-y-3 mb-6">
-              <input placeholder="Nama Pelanggan/PT" className="w-full p-3 bg-slate-50 border rounded-xl text-sm" onChange={(e)=>setFormData({...formData, customer_name: e.target.value})} />
-              <input placeholder="No WhatsApp (628xxx)" className="w-full p-3 bg-slate-50 border rounded-xl text-sm" onChange={(e)=>setFormData({...formData, customer_whatsapp: e.target.value})} />
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-widest">Jatuh Tempo</label>
-                <input type="date" className="w-full p-3 bg-slate-50 border rounded-xl text-sm mb-2" onChange={(e)=>setFormData({...formData, due_date: e.target.value})} />
-                <textarea 
-                  placeholder="Catatan Jatuh Tempo (Misal: Bayar 2x)" 
-                  className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none" 
-                  rows={2}
-                  onChange={(e)=>setFormData({...formData, due_date_notes: e.target.value})}
-                />
+        {/* KANAN: PREVIEW INVOICE */}
+        <div className="lg:col-span-2">
+          <div id="printable-invoice" className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 min-h-[800px] flex flex-col">
+            {/* Kop Surat */}
+            <div className="flex justify-between items-start mb-10 pb-8 border-b-2 border-slate-50">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-primary rounded-[1.5rem] flex items-center justify-center text-white shadow-lg">
+                  <span className="material-symbols-outlined text-4xl">potted_plant</span>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-primary tracking-tighter uppercase leading-none">Javas Nursery</h2>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-[0.2em]">Greenhouse & Wholesale</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <h3 className="text-3xl font-black text-slate-200 tracking-tighter uppercase mb-2">Invoice</h3>
+                <p className="text-xs font-black text-slate-800">#{invoiceId}</p>
+                <p className="text-[10px] font-bold text-slate-400">{new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}</p>
               </div>
             </div>
 
-            {/* LIST BARANG DI KERANJANG */}
-            <div className="border-t border-b py-4 my-2 space-y-3 max-h-60 overflow-y-auto">
-              {cart.length === 0 && <p className="text-center text-slate-300 text-xs py-4 italic">Belum ada barang dipilih</p>}
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center bg-emerald-50/50 p-2 rounded-xl">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold leading-tight">{item.name}</span>
-                    <span className="text-[10px] text-primary">Rp {item.price.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white rounded-lg px-2 border">
-                    <button onClick={()=>updateQty(item.id, item.qty-1)} className="text-primary font-bold p-1">-</button>
-                    <span className="text-xs font-mono w-4 text-center">{item.qty}</span>
-                    <button onClick={()=>updateQty(item.id, item.qty+1)} className="text-primary font-bold p-1">+</button>
-                  </div>
-                </div>
-              ))}
+            {/* Info Pelanggan */}
+            <div className="grid grid-cols-2 gap-8 mb-10">
+              <div>
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2">Ditujukan Ke:</p>
+                <p className="font-black text-slate-800 text-lg uppercase leading-tight">{customer.name || 'Nama Pelanggan'}</p>
+                <p className="text-sm font-bold text-slate-500 mt-1">{customer.phone || '08xxxxxx'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2">Alamat Kirim:</p>
+                <p className="text-sm font-bold text-slate-600 leading-relaxed italic">{customer.address || 'Alamat lengkap pengiriman...'}</p>
+              </div>
             </div>
 
-            <div className="pt-4">
-              <div className="flex justify-between font-bold text-lg mb-4 text-primary">
-                <span>Total</span>
+            {/* Tabel Barang */}
+            <div className="flex-1 overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b-2 border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="py-4">Tanaman</th>
+                    <th className="py-4 text-center">Jumlah</th>
+                    <th className="py-4 text-right">Harga</th>
+                    <th className="py-4 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {invoiceItems.map((item) => (
+                    <tr key={item.id} className="text-sm">
+                      <td className="py-5">
+                        <p className="font-black text-slate-800">{item.name}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">{item.sku}</p>
+                      </td>
+                      <td className="py-5 text-center font-bold no-print">
+                        <div className="flex items-center justify-center gap-3">
+                          <button onClick={()=>updateQty(item.id, item.qty - 1)} className="w-6 h-6 rounded-lg bg-slate-100 text-slate-500">-</button>
+                          <span className="w-4">{item.qty}</span>
+                          <button onClick={()=>updateQty(item.id, item.qty + 1)} className="w-6 h-6 rounded-lg bg-slate-100 text-slate-500">+</button>
+                        </div>
+                      </td>
+                      <td className="py-5 text-center font-black hidden print:table-cell">{item.qty} pcs</td>
+                      <td className="py-5 text-right font-bold text-slate-500">Rp {item.reseller_price.toLocaleString()}</td>
+                      <td className="py-5 text-right font-black text-slate-800">Rp {(item.reseller_price * item.qty).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total Section */}
+            <div className="mt-10 pt-8 border-t-4 border-slate-50 flex flex-col items-end gap-2">
+              <div className="flex justify-between w-full max-w-[250px] text-slate-400 font-bold text-xs uppercase">
+                <span>Subtotal</span>
                 <span>Rp {calculateTotal().toLocaleString()}</span>
               </div>
-              <button onClick={handleSaveInvoice} disabled={loading} className="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg">
-                {loading ? 'PROSES...' : 'TERBITKAN INVOICE'}
-              </button>
+              <div className="flex justify-between w-full max-w-[250px] text-slate-400 font-bold text-xs uppercase">
+                <span>Pajak (0%)</span>
+                <span>Rp 0</span>
+              </div>
+              <div className="flex justify-between w-full max-w-[300px] mt-4 p-4 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20">
+                <span className="font-black uppercase tracking-widest">Total Net</span>
+                <span className="font-black text-xl tracking-tight">Rp {calculateTotal().toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Footer Nota */}
+            <div className="mt-20 grid grid-cols-2 text-center text-[10px] font-bold uppercase tracking-widest text-slate-300">
+               <div>
+                  <p className="mb-16 italic">Hormat Kami,</p>
+                  <p className="text-slate-800">JAVAS NURSERY</p>
+               </div>
+               <div>
+                  <p className="mb-16 italic">Penerima,</p>
+                  <p className="text-slate-800">........................</p>
+               </div>
             </div>
           </div>
         </div>
-      ) : (
-        /* TABEL DAFTAR INVOICE (DENGAN CHECKBOX HAPUS MASSAL & TOMBOL LUNAS) */
-        <div className="bg-white rounded-3xl shadow-sm border border-emerald-100 overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-emerald-50 text-primary font-bold uppercase text-[10px]">
-              <tr>
-                <th className="px-6 py-4 w-10 text-center">
-                  <input type="checkbox" onChange={(e) => setSelectedIds(e.target.checked ? invoices.map(i => i.id) : [])} />
-                </th>
-                <th className="px-6 py-4">Pelanggan</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Jatuh Tempo & Catatan</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-emerald-50">
-              {invoices.map((inv: any) => (
-                <tr key={inv.id} className={`hover:bg-emerald-50/20 transition-all ${selectedIds.includes(inv.id) ? 'bg-emerald-50' : ''}`}>
-                  <td className="px-6 py-4 text-center">
-                    <input type="checkbox" checked={selectedIds.includes(inv.id)} onChange={() => toggleSelect(inv.id)} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-bold">{inv.customer_name}</p>
-                    <p className="text-[10px] text-slate-400 italic">{inv.customer_whatsapp || '-'}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase ${inv.status === 'lunas' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {inv.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-[10px]">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('id-ID') : '-'}</p>
-                    <p className="text-[10px] text-slate-500 line-clamp-1">{inv.due_date_notes || '-'}</p>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-primary">Rp {Number(inv.total_amount).toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
-                      {inv.status === 'pending' && (
-                        <button onClick={()=>markAsLunas(inv.id)} className="bg-green-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm">
-                          LUNASKAN
-                        </button>
-                      )}
-                      <button className="p-2 text-slate-300 hover:text-primary"><span className="material-symbols-outlined text-sm">visibility</span></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; background-color: white !important; }
+          #printable-invoice, #printable-invoice * { visibility: visible; }
+          #printable-invoice { 
+            position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
+            box-shadow: none !important; border: none !important;
+          }
+          .no-print { display: none !important; }
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+      `}</style>
     </div>
   )
 }
