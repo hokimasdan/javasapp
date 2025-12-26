@@ -8,7 +8,7 @@ export default function LaporanPage() {
     totalTransactions: 0,
     avgOrder: 0
   })
-  const [transactions, setTransactions] = useState([])
+  const [transactions, setTransactions] = useState<any[]>([])
 
   const fetchLaporan = async () => {
     // 1. Ambil semua data transaksi

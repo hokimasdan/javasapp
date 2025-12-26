@@ -9,8 +9,10 @@ export default function DashboardPage() {
     totalStock: 0,
     lowStockCount: 0
   })
-  const [recentTrx, setRecentTrx] = useState([])
-  const [lowStockItems, setLowStockItems] = useState([])
+
+  // PERBAIKAN: Menambahkan <any[]> agar tidak error "never[]" saat build
+  const [recentTrx, setRecentTrx] = useState<any[]>([])
+  const [lowStockItems, setLowStockItems] = useState<any[]>([])
 
   const fetchDashboardData = async () => {
     // 1. Ambil Penjualan Hari Ini
@@ -34,12 +36,15 @@ export default function DashboardPage() {
       .order('created_at', { ascending: false })
       .limit(5)
 
+    // Update State
     setStats({
       todaySales: salesSum,
       totalTrx: todayTrx?.length || 0,
       totalStock: stockSum,
       lowStockCount: lowStock.length
     })
+
+    // PERBAIKAN: Memastikan data yang dimasukkan diizinkan oleh TypeScript
     setRecentTrx(latest || [])
     setLowStockItems(lowStock)
   }
@@ -95,7 +100,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Kolom Kiri: Transaksi Terakhir */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
           <div className="p-6 border-b border-emerald-50 flex justify-between items-center">
             <h3 className="font-bold text-lg">Transaksi Terakhir</h3>
@@ -123,7 +127,6 @@ export default function DashboardPage() {
           </table>
         </div>
 
-        {/* Kolom Kanan: Peringatan Stok */}
         <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-6">
           <div className="flex items-center gap-2 text-red-600 mb-6">
             <span className="material-symbols-outlined">notification_important</span>

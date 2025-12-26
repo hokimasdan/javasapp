@@ -2,67 +2,123 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-export default function PengaturanPage() {
-  const [users, setUsers] = useState([])
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({ email: '', full_name: '', role: 'kasir' })
+export default function LaporanPage() {
+  const [stats, setStats] = useState({
+    totalIncome: 0,
+    totalTransactions: 0,
+    avgOrder: 0
+  })
 
-  // Fungsi mengambil daftar profil dari database
-  const fetchUsers = async () => {
-    const { data, error } = await supabase.from('profiles').select('*')
-    if (error) console.error(error)
-    else setUsers(data || [])
+  // Pastikan label <any[]> ada di sini
+  const [transactions, setTransactions] = useState<any[]>([])
+
+  const fetchLaporan = async () => {
+    // 1. Ambil semua data transaksi
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Gagal ambil laporan:', error.message)
+      return
+    }
+
+    if (data) {
+      setTransactions(data)
+      
+      // 2. Hitung statistik dengan logika yang lebih kuat (Type Safe)
+      // Memberi tahu TypeScript bahwa 'item' adalah 'any' agar tidak error saat reduce
+      const total = data.reduce((sum: number, item: any) => {
+        return sum + Number(item.total_price || 0)
+      }, 0)
+      
+      const count = data.length
+      const avg = count > 0 ? total / count : 0
+
+      setStats({
+        totalIncome: total,
+        totalTransactions: count,
+        avgOrder: avg
+      })
+    }
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => { fetchLaporan() }, [])
 
   return (
     <div className="p-8 bg-background-light min-h-screen text-black">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Pengaturan Pengguna</h1>
-          <p className="text-slate-500">Kelola siapa saja yang bisa mengakses Javasapp</p>
-        </div>
-        <button 
-          onClick={() => alert('Info: Untuk keamanan, pendaftaran akun baru dilakukan melalui Dashboard Supabase > Auth, lalu edit perannya di sini.')}
-          className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md"
-        >
-          <span className="material-symbols-outlined">person_add</span>
-          Tambah User Baru
-        </button>
+      {/* Judul Halaman */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-primary tracking-tight">Laporan Keuangan</h1>
+        <p className="text-slate-500">Analisis performa penjualan Javas Nursery secara real-time.</p>
       </div>
 
-      {/* Tabel Daftar Pengguna */}
+      {/* KPI Cards (Kartu Ringkasan) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 group hover:border-primary transition-all">
+          <p className="text-slate-500 text-sm font-medium mb-1">Total Pendapatan</p>
+          <h3 className="text-2xl font-bold text-primary font-mono text-black">
+            Rp {stats.totalIncome.toLocaleString('id-ID')}
+          </h3>
+          <span className="text-[10px] text-green-600 bg-green-100 px-2 py-0.5 rounded-full mt-2 inline-block font-bold">↑ 12.5%</span>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 group hover:border-primary transition-all">
+          <p className="text-slate-500 text-sm font-medium mb-1">Total Transaksi</p>
+          <h3 className="text-2xl font-bold text-primary font-mono text-black">
+            {stats.totalTransactions.toLocaleString('id-ID')}
+          </h3>
+          <span className="text-[10px] text-green-600 bg-green-100 px-2 py-0.5 rounded-full mt-2 inline-block font-bold">↑ 8.2%</span>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 group hover:border-primary transition-all">
+          <p className="text-slate-500 text-sm font-medium mb-1">Rata-rata Order</p>
+          <h3 className="text-2xl font-bold text-primary font-mono text-black">
+            Rp {Math.round(stats.avgOrder).toLocaleString('id-ID')}
+          </h3>
+          <span className="text-[10px] text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-2 inline-block font-bold">↓ 2.1%</span>
+        </div>
+      </div>
+
+      {/* Tabel Transaksi Terakhir */}
       <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-emerald-50 border-b border-emerald-100">
-            <tr>
-              <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Nama Lengkap</th>
-              <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Role / Hak Akses</th>
-              <th className="px-6 py-4 text-xs font-bold text-primary uppercase text-center">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-emerald-50">
-            {users.map((user: any) => (
-              <tr key={user.id} className="hover:bg-emerald-50/50 transition-colors">
-                <td className="px-6 py-4 font-bold">{user.full_name || 'Tanpa Nama'}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
-                    user.role === 'pemilik' ? 'bg-purple-100 text-purple-700' :
-                    user.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
-                  }`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-center">
-                   <button className="text-slate-300 hover:text-primary transition-colors">
-                    <span className="material-symbols-outlined">edit_square</span>
-                  </button>
-                </td>
+        <div className="p-6 border-b border-emerald-50 flex justify-between items-center">
+          <h3 className="font-bold text-lg text-black">Transaksi Terakhir</h3>
+          <button className="text-primary text-sm font-bold hover:underline">Lihat Semua</button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-emerald-50/50">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-primary uppercase">ID Transaksi</th>
+                <th className="px-6 py-4 text-xs font-bold text-primary uppercase">Tanggal</th>
+                <th className="px-6 py-4 text-xs font-bold text-primary uppercase text-right">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-emerald-50">
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-10 text-center text-slate-400">Belum ada transaksi terekam.</td>
+                </tr>
+              ) : (
+                transactions.map((trx: any) => (
+                  <tr key={trx.id} className="hover:bg-emerald-50/30 transition-colors text-black">
+                    <td className="px-6 py-4 font-mono text-sm">
+                      #TRX-{String(trx.id).substring(0, 5)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-500">
+                      {trx.created_at ? new Date(trx.created_at).toLocaleDateString('id-ID') : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold font-mono text-primary">
+                      Rp {Number(trx.total_price || 0).toLocaleString('id-ID')}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function StokPage() {
-  const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([]) // [Langkah 4] State untuk menampung daftar kategori
+  const [products, setProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([]) // [Langkah 4] State untuk menampung daftar kategori
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const [formData, setFormData] = useState({
