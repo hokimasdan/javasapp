@@ -1,15 +1,67 @@
 @import "tailwindcss";
 
 @theme {
-  /* Di sini kita mendaftarkan warna Hijau Elegan secara manual */
+  /* Warna Identitas Javas Nursery */
   --color-primary: #1c5f5a;
   --color-primary-dark: #13423f;
   --color-primary-light: #e8f2f1;
   --color-background-light: #f6f8f8;
+  
+  /* Tambahkan radius agar komponen lebih melengkung halus (Modern App Feel) */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
 }
 
-/* Tambahan agar logo tidak raksasa jika mesin cat belum panas */
-img {
-  max-width: 100%;
-  height: auto;
+@layer base {
+  * {
+    /* [Penting] Menghilangkan highlight biru saat tombol di-tap di HP */
+    -webkit-tap-highlight-color: transparent;
+    /* Memastikan box-sizing konsisten */
+    box-sizing: border-box;
+  }
+
+  html {
+    /* Mencegah scroll memantul (bounce effect) di iOS/Chrome Mobile */
+    overscroll-behavior-y: none;
+    /* Smooth scroll agar perpindahan halaman lebih halus */
+    scroll-smooth: always;
+  }
+
+  body {
+    @apply antialiased bg-background-light text-slate-800;
+    /* Mencegah teks terpilih secara tidak sengaja saat navigasi cepat */
+    -webkit-touch-callout: none;
+    /* Mengunci lebar agar tidak bocor ke samping */
+    overflow-x: hidden;
+    /* Menentukan font default agar lebih bersih */
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Optimalisasi gambar agar tidak pecah/lewat batas */
+  img {
+    max-width: 100%;
+    height: auto;
+    @apply inline-block;
+  }
+
+  /* Menghilangkan scrollbar tapi tetap bisa di-scroll (Opsional untuk tampilan bersih) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer utilities {
+  /* Efek klik ditekan (Feedback Visual) untuk tombol */
+  .active-scale {
+    @apply active:scale-95 transition-transform duration-100;
+  }
+  
+  /* Bayangan halus khas aplikasi premium */
+  .app-shadow {
+    box-shadow: 0 4px 20px -2px rgba(28, 95, 90, 0.1);
+  }
 }

@@ -1,62 +1,72 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
     if (error) {
-      alert('Gagal Masuk: ' + error.message)
+      alert("Login Gagal: " + error.message)
     } else {
-      // Pindah ke Ruang Utama setelah berhasil login
-      router.push('/dashboard') 
+      // Cek Role di tabel profiles
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user?.id)
+        .single()
+
+      alert(`Selamat Datang, Anda masuk sebagai ${profile?.role || 'kasir'}`)
+      router.push('/dashboard') // Semuanya ke dashboard, tapi menu akan difilter oleh Sidebar
     }
+    setLoading(false)
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-primary px-4">
-      <div className="text-center mb-8 flex flex-col items-center">
-        <div className="bg-white p-4 rounded-full mb-4 shadow-lg">
-          <img src="/logo.png" alt="Logo Javas" className="h-24 w-24 object-contain" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl shadow-primary/10 p-8 md:p-12 border border-slate-100">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-primary rounded-[2rem] flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-primary/30">
+            <span className="material-symbols-outlined text-4xl">local_florist</span>
+          </div>
+          <h1 className="text-3xl font-black text-primary tracking-tight">JAVAS POS</h1>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-2">Nursery Management System</p>
         </div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Selamat Datang di Javasapp</h1>
-        <p className="text-primary-light text-sm mt-1">Sistem Manajemen Javas Nursery</p>
-      </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-primary mb-1 text-black">Email</label>
-            <input 
-              type="email" 
-              placeholder="nama@email.com" 
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl p-3 text-black outline-none focus:ring-2 focus:ring-primary/50 transition-all bg-white"
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-4 uppercase tracking-widest">Email Terdaftar</label>
+            <input required type="email" placeholder="admin@javas.com" 
+              className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
+              onChange={(e) => setEmail(e.target.value)} 
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 ml-4 uppercase tracking-widest">Kata Sandi</label>
+            <input required type="password" placeholder="••••••••" 
+              className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
+              onChange={(e) => setPassword(e.target.value)} 
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-primary mb-1 text-black">Password</label>
-            <input 
-              type="password" 
-              placeholder="••••••••" 
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl p-3 text-black outline-none focus:ring-2 focus:ring-primary/50 transition-all bg-white"
-            />
-          </div>
-
-          <button 
-            onClick={handleLogin}
-            className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-xl transition duration-300 shadow-lg mt-2"
-          >
-            Masuk Sekarang
+          <button disabled={loading} type="submit" className="w-full bg-primary text-white py-5 rounded-[2rem] font-black shadow-xl shadow-primary/20 active-scale transition-all mt-4">
+            {loading ? 'MENGECEK DATA...' : 'MASUK KE SISTEM'}
           </button>
-        </div>
+        </form>
+
+        <p className="text-center text-[10px] text-slate-300 font-bold mt-10 uppercase tracking-widest">
+          © 2025 Javasapp v1.0 Developeb By DASA COM
+        </p>
       </div>
     </div>
   )
