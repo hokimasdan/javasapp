@@ -36,10 +36,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl shadow-primary/10 p-8 md:p-12 border border-slate-100">
         <div className="text-center mb-10">
           <div className="w-20 h-20 bg-primary rounded-[2rem] flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-primary/30">
-            <span className="material-symbols-outlined text-4xl">local_florist</span>
+            <div className="h-15 w-10 rounded-xl bg-primary overflow-hidden">
+        <img src="/logoj.png" className="w-full h-full object-cover" alt="Logo" />
+        </div>
           </div>
-          <h1 className="text-3xl font-black text-primary tracking-tight">JAVAS POS</h1>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-2">Nursery Management System</p>
+          <h1 className="text-3xl font-black text-primary tracking-tight">JAVAS APP</h1>
+         <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-2">Nursery Management System</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

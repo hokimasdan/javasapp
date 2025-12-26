@@ -55,8 +55,10 @@ export default function Sidebar() {
       {/* --- HEADER MOBILE --- */}
       <div className="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-3xl">local_florist</span>
-          <span className="font-bold text-primary tracking-tight uppercase">Javas POS</span>
+          <div className="h-10 w-10 rounded-xl bg-primary overflow-hidden">
+        <img src="/logoj.png" className="w-full h-full object-cover" alt="Logo" />
+        </div>
+          <span className="font-bold text-primary tracking-tight uppercase">Javas Nursery</span>
         </div>
         <button 
           onClick={toggleMenu}
@@ -83,9 +85,9 @@ export default function Sidebar() {
         
         {/* Brand/Logo (Desktop) */}
         <div className="p-6 hidden md:flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 text-white">
-            <span className="material-symbols-outlined">local_florist</span>
-          </div>
+          <div className="h-10 w-10 rounded-xl bg-primary overflow-hidden">
+          <img src="/logoj.png" className="w-full h-full object-cover" alt="Logo" />
+        </div>
           <div>
             <h1 className="text-primary font-black text-lg tracking-tighter">JAVAS NURSERY</h1>
             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">Management</p>

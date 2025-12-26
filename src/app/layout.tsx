@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next"; // Tambahkan Viewport
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Javas Nursery - POS System",
+  title: "Javas Nursery",
   description: "Sistem Manajemen Kasir dan Stok Javas Nursery",
   // Baris di bawah ini bikin HP mendeteksi ini sebagai aplikasi web
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Javas POS",
+    title: "Javas App",
   },
 };
 
