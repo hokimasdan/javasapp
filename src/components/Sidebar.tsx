@@ -11,14 +11,15 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
 
-  // 1. Ambil Data User (Nama & Role) dari Database
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true)
+        // 1. Ambil session user yang login
         const { data: { user } } = await supabase.auth.getUser()
         
         if (user) {
+          // 2. Ambil data full_name dan role dari tabel profiles
           const { data, error } = await supabase
             .from('profiles')
             .select('full_name, role')
@@ -27,13 +28,13 @@ export default function Sidebar() {
           
           if (!error && data) {
             setUserData({
-              name: data.full_name || 'User',
-              role: data.role?.toLowerCase() || 'kasir'
+              name: data.full_name, // Mengambil "Kasir" atau "Masdan" dari DB
+              role: data.role ? data.role.toLowerCase() : '' // Paksa ke huruf kecil
             })
           }
         }
       } catch (err) {
-        console.error("Error fetching user info:", err)
+        console.error("Gagal load profil:", err)
       } finally {
         setLoading(false)
       }
@@ -42,14 +43,13 @@ export default function Sidebar() {
   }, [])
 
   const handleLogout = async () => {
-    const confirmLogout = confirm("Yakin ingin keluar dari aplikasi?")
-    if (confirmLogout) {
+    if (confirm("Keluar dari aplikasi Javas Nursery?")) {
       await supabase.auth.signOut()
       router.push('/')
     }
   }
 
-  // 2. Menu Items (Role disesuaikan: 'admin' & 'kasir')
+  // 3. DAFTAR MENU (Role disesuaikan dengan database: 'admin' dan 'kasir')
   const menuItems = [
     { name: 'Beranda', href: '/dashboard', icon: 'dashboard', roles: ['admin', 'kasir'] },
     { name: 'Inventaris/Stok', href: '/dashboard/stok', icon: 'inventory_2', roles: ['admin', 'kasir'] },
@@ -64,7 +64,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* --- HEADER MOBILE --- */}
+      {/* HEADER MOBILE */}
       <div className="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center sticky top-0 z-[60]">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-primary overflow-hidden">
@@ -72,31 +72,25 @@ export default function Sidebar() {
           </div>
           <span className="font-black text-primary text-sm tracking-tight uppercase">Javas Nursery</span>
         </div>
-        <button 
-          onClick={toggleMenu}
-          className="p-2 rounded-xl bg-slate-100 text-slate-600 active:scale-90 transition-all"
-        >
-          <span className="material-symbols-outlined text-2xl">{isOpen ? 'close' : 'menu'}</span>
+        <button onClick={toggleMenu} className="p-2 rounded-xl bg-slate-100 text-slate-600">
+          <span className="material-symbols-outlined">{isOpen ? 'close' : 'menu'}</span>
         </button>
       </div>
 
-      {/* --- OVERLAY MOBILE --- */}
+      {/* OVERLAY */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] md:hidden animate-in fade-in duration-300"
-          onClick={toggleMenu}
-        />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] md:hidden" onClick={toggleMenu} />
       )}
 
-      {/* --- SIDEBAR UTAMA --- */}
+      {/* SIDEBAR */}
       <aside className={`
-        fixed inset-y-0 left-0 z-[80] w-72 bg-white border-r border-slate-200 flex flex-col h-screen transition-transform duration-500 ease-in-out
+        fixed inset-y-0 left-0 z-[80] w-72 bg-white border-r border-slate-200 flex flex-col h-screen transition-transform duration-300
         md:translate-x-0 md:static md:w-64 md:flex-shrink-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         
-        {/* Brand/Logo (Desktop) */}
-        <div className="p-6 hidden md:flex items-center gap-3">
+        {/* BRAND LOGO */}
+        <div className="p-6 flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-primary overflow-hidden shadow-lg shadow-primary/20">
             <img src="/logoj.png" className="w-full h-full object-cover" alt="Logo" />
           </div>
@@ -106,19 +100,12 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Navigasi Menu */}
-        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-          {loading ? (
-            // Shimmer Loading sederhana agar tidak blank
-            <div className="space-y-4 px-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-10 w-full bg-slate-50 animate-pulse rounded-xl" />
-              ))}
-            </div>
-          ) : (
+        {/* MENU NAVIGASI */}
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
+          {!loading && userData ? (
             menuItems.map((item) => {
-              // Validasi Role
-              if (userData && !item.roles.includes(userData.role)) return null
+              // Validasi role di sini
+              if (!item.roles.includes(userData.role)) return null
 
               const isActive = pathname === item.href
               return (
@@ -126,45 +113,45 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href} 
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
                     isActive 
-                      ? 'bg-primary text-white shadow-xl shadow-primary/30 scale-[1.02]' 
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
                       : 'text-slate-500 hover:bg-slate-50 hover:text-primary'
                   }`}
                 >
-                  <span className={`material-symbols-outlined text-[22px] ${isActive ? 'fill-1' : ''}`}>
-                    {item.icon}
-                  </span>
-                  <span className="text-sm font-bold tracking-tight">{item.name}</span>
+                  <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                  <span className="text-sm font-bold">{item.name}</span>
                 </Link>
               )
             })
+          ) : (
+            <div className="p-4 space-y-3">
+              {[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-slate-50 animate-pulse rounded-xl" />)}
+            </div>
           )}
         </nav>
 
-        {/* Profile & Logout Section */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-          {/* Info User Dinamis */}
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-sm mb-2">
-            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-xs border border-primary/20 uppercase">
-              {userData?.name.substring(0, 2) || '??'}
+        {/* PROFILE SECTION */}
+        <div className="p-4 border-t border-slate-100">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 mb-2">
+            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-xs uppercase">
+              {userData?.name?.substring(0, 2) || '??'}
             </div>
-            <div className="flex flex-col overflow-hidden text-left">
+            <div className="flex flex-col overflow-hidden">
+              {/* NAMA DIAMBIL DARI DATABASE */}
               <p className="text-sm font-black text-slate-800 truncate">
-                {loading ? 'Memuat...' : userData?.name}
+                {loading ? 'Loading...' : userData?.name}
               </p>
-              <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
-                {userData?.role || 'Guest'}
+              {/* ROLE DIAMBIL DARI DATABASE */}
+              <p className="text-[9px] text-primary font-black uppercase tracking-widest">
+                {userData?.role || '...'}
               </p>
             </div>
           </div>
 
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all font-black text-sm group active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform">logout</span>
-            Keluar
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all font-black text-sm">
+            <span className="material-symbols-outlined text-[22px]">logout</span>
+            Keluar Aplikasi
           </button>
         </div>
       </aside>
