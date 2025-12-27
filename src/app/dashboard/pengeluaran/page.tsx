@@ -129,7 +129,7 @@ export default function PengeluaranPage() {
               <option value="Pembelian Stok">Pembelian Stok</option>
               <option value="Operasional">Operasional</option>
               <option value="Gaji Karyawan">Gaji Karyawan</option>
-              <option value="Utilitas">Utilitas</option>
+              <option value="Utilitas">Lain-lain</option>
             </select>
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function PengeluaranPage() {
                   <option value="Pembelian Stok">Pembelian Stok</option>
                   <option value="Operasional">Operasional</option>
                   <option value="Gaji Karyawan">Gaji Karyawan</option>
-                  <option value="Utilitas">Utilitas</option>
+                  <option value="Utilitas">Lain-lain</option>
                 </select>
               </div>
               <div>
