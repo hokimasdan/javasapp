@@ -56,6 +56,7 @@ export default function Sidebar() {
     { name: 'Tambah Kategori', href: '/dashboard/kategori', icon: 'category', roles: ['admin'] },
     { name: 'Kasir', href: '/dashboard/kasir', icon: 'receipt_long', roles: ['admin', 'kasir'] },
     { name: 'Invoice Grosir', href: '/dashboard/invoice', icon: 'request_quote', roles: ['admin', 'kasir'] },
+    { name: 'Pengeluaran', href: '/dashboard/pengeluaran', icon: 'request_quote', roles: ['admin', 'kasir'] },
     { name: 'Laporan', href: '/dashboard/laporan', icon: 'bar_chart', roles: ['admin'] },
     { name: 'Pengaturan', href: '/dashboard/pengaturan', icon: 'settings', roles: ['admin'] },
   ]
